@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "lumina-prompt-engine"
+version = "0.1.0"
+description = "Generate model-specific prompts and evaluate them with a Judge-LLM"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.32.0",
+    "python-dotenv>=1.0.0",
+    "pydantic>=2.9.0",
+    "instructor[litellm]>=1.0.0",
+    "litellm>=1.50.0",
+    "deepeval>=1.0.0",
+    "pydantic-ai>=0.0.15",
+    "httpx>=0.27.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.24.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["backend*"]

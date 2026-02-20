@@ -1,0 +1,24 @@
+# Lumina Prompt Engine - Backend Dependencies
+# Python 3.10+ recommended
+# Matches paper design: FastAPI, LiteLLM, Instructor, DeepEval, Pydantic AI
+
+# Server
+fastapi>=0.115.0
+uvicorn[standard]>=0.32.0
+python-dotenv>=1.0.0
+
+# Structure & validation
+pydantic>=2.9.0
+instructor[litellm]>=1.0.0
+
+# Multi-model orchestration
+litellm>=1.50.0
+
+# Evaluator (LLM-as-a-judge)
+deepeval>=1.0.0
+
+# Agentic workflow (feedback loop Judge <-> Engine)
+pydantic-ai>=0.0.15
+
+# HTTP client (parallel API calls, tests)
+httpx>=0.27.0
