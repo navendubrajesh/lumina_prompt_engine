@@ -45,6 +45,7 @@ export interface FinalResponse {
   results: EvaluatedEngineOutput[];
   summary: string | null;
   system_prompt?: string | null;
+  suggested_title?: string | null;
 }
 
 // ---------------------------------------------------------------------------

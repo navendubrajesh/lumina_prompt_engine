@@ -19,6 +19,158 @@ function ensureSpace(pdf: jsPDF, yPos: number, needed: number): number {
   return yPos;
 }
 
+function drawOverallScoreChart(
+  pdf: jsPDF,
+  results: Array<{ engine_name: string; overall_score: number }>,
+  startX: number,
+  startY: number,
+  chartWidth: number,
+  barHeight: number,
+  gap: number,
+  labelWidth = 42
+): number {
+  const barMaxWidth = chartWidth - labelWidth - 16;
+  pdf.setFontSize(8);
+  pdf.setFont("helvetica", "normal");
+  pdf.setTextColor(180, 180, 180);
+  pdf.text("0", startX + labelWidth - 1, startY + 2);
+  pdf.text("1.00", startX + labelWidth + barMaxWidth - 10, startY + 2);
+  pdf.setDrawColor(80, 80, 80);
+  pdf.setLineWidth(0.2);
+  pdf.line(startX + labelWidth, startY + 3, startX + labelWidth + barMaxWidth, startY + 3);
+
+  const labelMaxWidth = labelWidth - 2;
+  const lineHeight = 4;
+  let y = startY + 6;
+  results.forEach((r) => {
+    pdf.setFontSize(8);
+    const lines = pdf.splitTextToSize(r.engine_name, labelMaxWidth);
+    const textBlockHeight = lines.length * lineHeight;
+    const rowHeight = Math.max(barHeight + gap, textBlockHeight + 2);
+    const barY = y;
+    pdf.setTextColor(220, 220, 220);
+    lines.forEach((line: string, i: number) => {
+      pdf.text(line, startX, y + 3 + i * lineHeight);
+    });
+    const score = Math.max(0, Math.min(1, r.overall_score));
+    const barLen = barMaxWidth * score;
+    pdf.setFillColor(52, 211, 153);
+    pdf.rect(startX + labelWidth, barY, barLen, barHeight, "F");
+    pdf.setFillColor(40, 40, 40);
+    pdf.rect(startX + labelWidth + barLen, barY, barMaxWidth - barLen, barHeight, "F");
+    pdf.setTextColor(52, 211, 153);
+    pdf.setFontSize(7);
+    pdf.text(score.toFixed(2), startX + labelWidth + barMaxWidth + 2, barY + barHeight / 2 + 1);
+    y += rowHeight;
+  });
+  return y;
+}
+
+const LINE_CHART_METRICS = [
+  { key: "context" as const, label: "Context", color: [96, 165, 250] as [number, number, number] },
+  { key: "clarity" as const, label: "Clarity", color: [167, 139, 250] as [number, number, number] },
+  { key: "adherence" as const, label: "Adherence", color: [251, 191, 36] as [number, number, number] },
+  { key: "robustness" as const, label: "Robustness", color: [52, 211, 153] as [number, number, number] },
+  { key: "efficiency" as const, label: "Efficiency", color: [103, 232, 249] as [number, number, number] },
+];
+
+function getMetricValue(
+  result: { evaluation: Record<string, number> },
+  key: string
+): number {
+  const map: Record<string, string> = {
+    context: "contextual_alignment",
+    clarity: "instruction_clarity",
+    adherence: "constraint_adherence",
+    robustness: "robustness",
+    efficiency: "efficiency",
+  };
+  const k = map[key] ?? key;
+  return Math.max(0, Math.min(1, result.evaluation[k] ?? 0));
+}
+
+function drawMetricsLineChart(
+  pdf: jsPDF,
+  results: Array<{ engine_output: { engine_name: string }; evaluation: Record<string, number> }>,
+  startX: number,
+  startY: number,
+  chartWidth: number,
+  chartHeight: number
+): number {
+  const padding = { left: 8, right: 8, top: 5, bottom: 28 };
+  const plotLeft = startX + padding.left;
+  const plotRight = startX + chartWidth - padding.right;
+  const plotTop = startY + padding.top;
+  const plotBottom = startY + chartHeight - padding.bottom;
+  const plotW = plotRight - plotLeft;
+  const plotH = plotBottom - plotTop;
+  const n = results.length;
+
+  pdf.setDrawColor(70, 70, 70);
+  pdf.setLineWidth(0.2);
+  pdf.rect(startX, startY, chartWidth, chartHeight, "S");
+
+  if (n < 2) {
+    pdf.setFontSize(8);
+    pdf.setTextColor(180, 180, 180);
+    pdf.text("(Need at least 2 engines for line chart)", plotLeft, startY + chartHeight / 2);
+    return startY + chartHeight;
+  }
+
+  const xScale = (i: number) => plotLeft + (i / (n - 1)) * plotW;
+  const yScale = (v: number) => plotBottom - v * plotH;
+
+  pdf.setFontSize(6);
+  pdf.setTextColor(180, 180, 180);
+  const yTicks = [0, 0.25, 0.5, 0.75, 1];
+  yTicks.forEach((v) => {
+    const y = yScale(v);
+    const label = v === 0 ? "0" : v === 1 ? "1" : `.${(v * 100).toFixed(0)}`;
+    pdf.text(label, plotLeft - 5, y + 1);
+  });
+
+  LINE_CHART_METRICS.forEach(({ key, label, color }) => {
+    const points: Array<[number, number]> = results.map((r, i) => [
+      xScale(i),
+      yScale(getMetricValue(r, key)),
+    ]);
+    pdf.setDrawColor(color[0], color[1], color[2]);
+    pdf.setLineWidth(0.35);
+    for (let i = 0; i < points.length - 1; i++) {
+      pdf.line(points[i][0], points[i][1], points[i + 1][0], points[i + 1][1]);
+    }
+  });
+
+  const step = Math.max(1, Math.floor(n / 6));
+  pdf.setFontSize(6);
+  pdf.setTextColor(200, 200, 200);
+  const xLabelMaxWidth = 14;
+  const xLabelLineHeight = 3.5;
+  results.forEach((r, i) => {
+    if (i % step !== 0 && i !== n - 1) return;
+    const x = xScale(i);
+    const lines = pdf.splitTextToSize(r.engine_output.engine_name, xLabelMaxWidth);
+    lines.forEach((line: string, li: number) => {
+      pdf.text(line, x - xLabelMaxWidth / 2, plotBottom + 8 + li * xLabelLineHeight);
+    });
+  });
+
+  const legendY = startY + chartHeight + 5;
+  const legendSegmentWidth = chartWidth / LINE_CHART_METRICS.length;
+  const squareSize = 2;
+  const gapAfterSquare = 1.5;
+  pdf.setFontSize(7);
+  LINE_CHART_METRICS.forEach(({ label, color }, i) => {
+    const legendX = startX + i * legendSegmentWidth + 2;
+    pdf.setFillColor(color[0], color[1], color[2]);
+    pdf.rect(legendX, legendY - squareSize / 2, squareSize, squareSize, "F");
+    pdf.setTextColor(color[0], color[1], color[2]);
+    pdf.text(label, legendX + squareSize + gapAfterSquare, legendY + 1);
+  });
+
+  return legendY + 8;
+}
+
 function drawWrappedText(
   pdf: jsPDF,
   text: string,
@@ -99,7 +251,10 @@ function drawBadge(
   return badgeWidth + 2;
 }
 
-export async function generatePDFReport(response: FinalResponse): Promise<void> {
+export async function generatePDFReport(
+  response: FinalResponse,
+  runName?: string
+): Promise<void> {
   const pdf = new jsPDF("p", "mm", "a4");
   const pageWidth = pdf.internal.pageSize.getWidth();
   const pageHeight = pdf.internal.pageSize.getHeight();
@@ -111,18 +266,22 @@ export async function generatePDFReport(response: FinalResponse): Promise<void> 
   pdf.setTextColor(255, 255, 255);
   pdf.setFontSize(20);
   pdf.setFont("helvetica", "bold");
-  pdf.text("Lumina Prompt Engine - Evaluation Report", MARGIN, yPos);
+  const titleText = "Lumina Prompt Engine - Evaluation Report";
+  const titleW = pdf.getTextWidth(titleText);
+  pdf.text(titleText, (pageWidth - titleW) / 2, yPos);
   yPos += 10;
 
-  pdf.setFontSize(12);
-  pdf.setFont("helvetica", "normal");
-  const dateStr = new Date().toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  });
-  pdf.text(`Generated on: ${dateStr}`, MARGIN, yPos);
-  yPos += 14;
+  const promptName = (runName ?? "").trim();
+  if (promptName) {
+    pdf.setFontSize(14);
+    pdf.setFont("helvetica", "bold");
+    pdf.setTextColor(230, 230, 230);
+    const nameW = pdf.getTextWidth(promptName);
+    pdf.text(promptName, (pageWidth - nameW) / 2, yPos);
+    yPos += 8;
+  }
+
+  yPos += 6;
 
   // ---------- Who am I? / What I want to do / Constraints (persona) ----------
   const persona = response.persona;
@@ -260,16 +419,20 @@ Zero Preamble: Output ONLY the exact text of the engineered prompt. Do not inclu
     yPos = ensureSpace(pdf, yPos, 40);
     if (yPos === MARGIN && index > 0) yPos += 5;
 
-    const engineName =
-      result.engine_output.engine_name.length > 40
-        ? result.engine_output.engine_name.substring(0, 37) + "..."
-        : result.engine_output.engine_name;
     const scorePct = (result.overall_score * 100).toFixed(0);
     pdf.setFontSize(12);
     pdf.setFont("helvetica", "bold");
     pdf.setTextColor(255, 255, 255);
-    pdf.text(`${index + 1}. ${engineName} (${scorePct}%)`, MARGIN, yPos);
-    yPos += 6;
+    yPos = drawWrappedText(
+      pdf,
+      `${index + 1}. ${result.engine_output.engine_name} (${scorePct}%)`,
+      MARGIN,
+      yPos,
+      CONTENT_WIDTH,
+      12,
+      6
+    );
+    yPos += 2;
 
     let xPos = MARGIN;
     const badges = [
@@ -328,6 +491,7 @@ Zero Preamble: Output ONLY the exact text of the engineered prompt. Do not inclu
   pdf.setFont("helvetica", "normal");
   pdf.setFontSize(8);
 
+  const tableLineHeight = 4;
   response.results.forEach((result) => {
     if (yPos > pageHeight - 20) {
       pdf.addPage();
@@ -347,8 +511,11 @@ Zero Preamble: Output ONLY the exact text of the engineered prompt. Do not inclu
       pdf.setFont("helvetica", "normal");
     }
 
+    const engineNameLines = pdf.splitTextToSize(result.engine_output.engine_name, colWidths[0] - 4);
+    const rowHeight = Math.max(7, engineNameLines.length * tableLineHeight);
+
     pdf.setFillColor(24, 24, 27);
-    pdf.rect(MARGIN, yPos, pageWidth - MARGIN * 2, 7, "F");
+    pdf.rect(MARGIN, yPos, pageWidth - MARGIN * 2, rowHeight, "F");
 
     x = MARGIN;
     const rowData = [
@@ -364,15 +531,61 @@ Zero Preamble: Output ONLY the exact text of the engineered prompt. Do not inclu
     rowData.forEach((cell, i) => {
       pdf.setTextColor(255, 255, 255);
       if (i === 1) pdf.setTextColor(52, 211, 153);
-      const cellText = i === 0 && cell.length > 20 ? cell.substring(0, 17) + "..." : cell;
-      pdf.text(cellText, x + 2, yPos + 5);
+      if (i === 0) {
+        engineNameLines.forEach((line: string, li: number) => {
+          pdf.text(line, x + 2, yPos + 3 + (li + 1) * tableLineHeight);
+        });
+      } else {
+        pdf.text(cell, x + 2, yPos + rowHeight / 2 + 1.5);
+      }
       x += colWidths[i];
     });
 
-    yPos += 7;
+    yPos += rowHeight;
   });
 
-  yPos += 12;
+  yPos += 14;
+  const chartsGap = 8;
+  const halfWidth = (CONTENT_WIDTH - chartsGap) / 2;
+  const lineChartHeight = 56;
+  const barHeight = 5;
+  const barGap = 3;
+  const chartData = response.results.map((r) => ({
+    engine_name: r.engine_output.engine_name,
+    overall_score: r.overall_score,
+  }));
+  const barChartLabelWidth = 32;
+  const barChartNeededHeight = chartData.length * (barHeight + barGap) + 16;
+  const chartsNeededHeight = Math.max(barChartNeededHeight, lineChartHeight + 22);
+  yPos = ensureSpace(pdf, yPos, chartsNeededHeight + 20);
+
+  pdf.setFontSize(14);
+  pdf.setFont("helvetica", "bold");
+  pdf.setTextColor(255, 255, 255);
+  pdf.text("Overall Score (0–1 scale)", MARGIN + halfWidth / 2, yPos, { align: "center" });
+  pdf.text("Metrics by engine (0–1 scale)", MARGIN + halfWidth + chartsGap + halfWidth / 2, yPos, { align: "center" });
+  yPos += 8;
+
+  const chartsStartY = yPos;
+  const barChartEndY = drawOverallScoreChart(
+    pdf,
+    chartData,
+    MARGIN,
+    chartsStartY,
+    halfWidth,
+    barHeight,
+    barGap,
+    barChartLabelWidth
+  );
+  const lineChartEndY = drawMetricsLineChart(
+    pdf,
+    response.results,
+    MARGIN + halfWidth + chartsGap,
+    chartsStartY,
+    halfWidth,
+    lineChartHeight
+  );
+  yPos = Math.max(barChartEndY, lineChartEndY) + 12;
   yPos = ensureSpace(pdf, yPos, 80);
 
   // ---------- DETAILED RESULTS: Full details per LLM ----------
@@ -386,16 +599,20 @@ Zero Preamble: Output ONLY the exact text of the engineered prompt. Do not inclu
     yPos = ensureSpace(pdf, yPos, 45);
     if (yPos === MARGIN && index > 0) yPos += 5;
 
-    const engineName =
-      result.engine_output.engine_name.length > 45
-        ? result.engine_output.engine_name.substring(0, 42) + "..."
-        : result.engine_output.engine_name;
     const scorePct = (result.overall_score * 100).toFixed(0);
     pdf.setFontSize(14);
     pdf.setFont("helvetica", "bold");
     pdf.setTextColor(255, 255, 255);
-    pdf.text(`${index + 1}. ${engineName} (${scorePct}%)`, MARGIN, yPos);
-    yPos += 7;
+    yPos = drawWrappedText(
+      pdf,
+      `${index + 1}. ${result.engine_output.engine_name} (${scorePct}%)`,
+      MARGIN,
+      yPos,
+      CONTENT_WIDTH,
+      14,
+      7
+    );
+    yPos += 2;
 
     let xPos = MARGIN;
     const badges = [

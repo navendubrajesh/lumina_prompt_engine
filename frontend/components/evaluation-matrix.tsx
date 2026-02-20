@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useCallback, useState, useMemo } from "react";
+import { useRef, useCallback, useState, useMemo, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Download, ChevronUp, ChevronDown, FileText } from "lucide-react";
 import * as XLSX from "xlsx";
@@ -61,6 +61,12 @@ export function EvaluationMatrix({ response }: EvaluationMatrixProps) {
   const tableRef = useRef<HTMLElement>(null);
   const [sortColumn, setSortColumn] = useState<SortKey | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>("asc");
+  const [runName, setRunName] = useState<string>(() => response.suggested_title?.trim() ?? "");
+
+  useEffect(() => {
+    const suggested = response.suggested_title?.trim() ?? "";
+    setRunName(suggested);
+  }, [response.suggested_title]);
 
   const sortedResults = useMemo(() => {
     if (!sortColumn) return response.results;
@@ -130,15 +136,28 @@ export function EvaluationMatrix({ response }: EvaluationMatrixProps) {
 
   const downloadPDF = useCallback(async () => {
     try {
-      await generatePDFReport(response);
+      await generatePDFReport(response, runName);
     } catch (error) {
       console.error("Error generating PDF:", error);
       alert("Failed to generate PDF report. Please try again.");
     }
-  }, [response]);
+  }, [response, runName]);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto overflow-x-hidden p-6">
+      <div className="flex flex-col gap-2">
+        <label htmlFor="run-name" className="text-sm font-medium text-zinc-300">
+          Run name <span className="text-zinc-500">(pre-filled with suggested name; edit as needed)</span>
+        </label>
+        <input
+          id="run-name"
+          type="text"
+          value={runName}
+          onChange={(e) => setRunName(e.target.value)}
+          placeholder="Run name (e.g. User Story prompt)"
+          className="w-full max-w-md rounded-md border border-zinc-600 bg-zinc-800/80 px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-500 focus:border-emerald-500/50 focus:outline-none focus:ring-1 focus:ring-emerald-500/50"
+        />
+      </div>
       <ResultSummary response={response} />
       <button
         type="button"
@@ -272,7 +291,7 @@ export function EvaluationMatrix({ response }: EvaluationMatrixProps) {
                   key={result.engine_output.engine_name}
                   className={`border-b border-zinc-800 ${index === 0 ? "bg-emerald-500/5" : ""}`}
                 >
-                  <td className="px-4 py-3 font-medium text-zinc-100">
+                  <td className="max-w-[200px] break-words px-4 py-3 font-medium text-zinc-100">
                     {result.engine_output.engine_name}
                   </td>
                   <td className="px-4 py-3 text-right text-emerald-400">

@@ -249,3 +249,10 @@ class FinalResponse(BaseModel):
             description="The system prompt used by engines for prompt generation (for display in reports)",
         ),
     ] = None,
+    suggested_title: Annotated[
+        str | None,
+        Field(
+            default=None,
+            description="LLM-suggested short title (≤6–8 words) for this run; user can edit in the UI.",
+        ),
+    ] = None,

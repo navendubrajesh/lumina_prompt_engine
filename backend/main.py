@@ -27,6 +27,7 @@ from backend.app.evaluator import evaluate_prompt
 from backend.app.engines import MultiEngineRouter
 from backend.app.engines.base import SYSTEM_PROMPT
 from backend.app.engines.providers import ENGINES_MONEYSAVER
+from backend.app.title_suggestion import suggest_run_title
 from backend.app.models import (
     EvaluatedEngineOutput,
     FinalResponse,
@@ -144,15 +145,20 @@ async def generate_optimized_prompts(body: GenerateOptimizedPromptsRequest) -> F
             ]
             results.sort(key=lambda r: r.overall_score, reverse=True)
 
-        return FinalResponse(
-            persona=persona,
-            results=results,
-            summary=(
+            summary_text = (
                 f"Generated {len(results)} model-specific prompts. "
                 f"Top scorer: {results[0].engine_output.engine_name} "
                 f"(overall: {results[0].overall_score:.2f})."
-            ),
+            )
+            top_prompt = results[0].engine_output.generated_prompt if results else None
+            suggested_title = await suggest_run_title(persona, summary_text, top_prompt)
+
+        return FinalResponse(
+            persona=persona,
+            results=results,
+            summary=summary_text,
             system_prompt=SYSTEM_PROMPT,
+            suggested_title=suggested_title,
         )
     except HTTPException:
         raise
