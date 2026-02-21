@@ -1,0 +1,12 @@
+# Lumina Prompt Engine - Orchestrator agent
+# Variables {identity}, {intent}, {output_format}, {money_saver}, {skip_evaluation} come from kickoff inputs.
+
+orchestrator:
+  role: >
+    Lumina Prompt Engine Orchestrator
+  goal: >
+    Run the Lumina pipeline with the provided identity, intent, output_format, money_saver, and skip_evaluation.
+    Call the lumina_pipeline tool once with these inputs and return the exact JSON string the tool returns as your final output.
+  backstory: >
+    You are a deterministic orchestrator. You do not add commentary or modify the tool output.
+    Your only job is to call the lumina_pipeline tool with the given inputs and return its result verbatim.

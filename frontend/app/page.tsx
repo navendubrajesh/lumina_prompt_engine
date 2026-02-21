@@ -8,6 +8,10 @@ import {
   type FinalResponse,
   type Persona,
 } from "@/lib/api-client";
+import {
+  isCrewAIEnabled,
+  runLuminaViaCrewAI,
+} from "@/lib/crewai-client";
 import { EmptyState } from "@/components/empty-state";
 import { EvaluationMatrix } from "@/components/evaluation-matrix";
 import { PersonaStudio } from "@/components/persona-studio";
@@ -55,32 +59,38 @@ export default function Home() {
     setError(null);
     setIsLoading(true);
     try {
-      // Phase 1: generate prompts only (display first, order = XML)
-      const data = await generateOptimizedPrompts({
-        persona,
-        money_saver: moneySaver,
-        skip_evaluation: true,
-      });
-      setResponse(data);
-      setProgress(100);
-      setIsLoading(false);
+      if (isCrewAIEnabled()) {
+        // CrewAI: one kickoff, full pipeline, returns FinalResponse
+        const data = await runLuminaViaCrewAI(persona, moneySaver, false);
+        setResponse(data);
+        setProgress(100);
+      } else {
+        // FastAPI: phase 1 (prompts) then phase 2 (evaluate)
+        const data = await generateOptimizedPrompts({
+          persona,
+          money_saver: moneySaver,
+          skip_evaluation: true,
+        });
+        setResponse(data);
+        setProgress(100);
+        setIsLoading(false);
 
-      // Phase 2: evaluate prompts in background, then populate scores (same order as XML)
-      const evalResponse = await evaluatePrompts(
-        data.results.map((r) => r.engine_output),
-        persona,
-        moneySaver
-      );
-      const top = evalResponse.results[0];
-      const summary =
-        top != null
-          ? `Generated ${evalResponse.results.length} model-specific prompts. Top scorer: ${top.engine_output.engine_name} (overall: ${top.overall_score.toFixed(2)}).`
-          : data.summary;
-      setResponse((prev) =>
-        prev
-          ? { ...prev, results: evalResponse.results, summary }
-          : null
-      );
+        const evalResponse = await evaluatePrompts(
+          data.results.map((r) => r.engine_output),
+          persona,
+          moneySaver
+        );
+        const top = evalResponse.results[0];
+        const summary =
+          top != null
+            ? `Generated ${evalResponse.results.length} model-specific prompts. Top scorer: ${top.engine_output.engine_name} (overall: ${top.overall_score.toFixed(2)}).`
+            : data.summary;
+        setResponse((prev) =>
+          prev
+            ? { ...prev, results: evalResponse.results, summary }
+            : null
+        );
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Generation failed");
       setProgress(0);

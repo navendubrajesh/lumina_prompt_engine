@@ -68,12 +68,22 @@ cd frontend && npm run dev
 - **[SETUP.md](SETUP.md)** - Detailed setup guide with troubleshooting
 - **[backend/.env.example](backend/.env.example)** - Environment variables reference  
 
+## Deployment (Vercel + CrewAI)
+
+- **Frontend:** Deploy on [Vercel](https://vercel.com) from Git. Connect the repo and set **Root Directory** to `frontend` (or use the included `vercel.json`). Add env vars in Vercel:
+  - `NEXT_PUBLIC_CREWAI_BASE_URL` – CrewAI AMP base URL (e.g. `https://your-crew-name.crewai.com`)
+  - `NEXT_PUBLIC_CREWAI_BEARER_TOKEN` – CrewAI AMP Bearer token (from crew Status tab)
+- **Agents:** Deploy the crew to [CrewAI AMP](https://app.crewai.com). Use the `crewai/` project; set project root to this repo root so `backend` is importable. Configure `GROQ_API_KEY` (and other keys for non-MONEYSAVER) in AMP.
+- When `NEXT_PUBLIC_CREWAI_BASE_URL` is set, the frontend uses CrewAI (one kickoff, full result). Otherwise it uses the local FastAPI backend (two-phase: generate then evaluate).
+
 ## Project Structure
 
 ```
 lumina_prompt_engine/
-├── backend/          # FastAPI, engines, evaluator
-├── frontend/         # Next.js dashboard
+├── backend/          # FastAPI, engines, evaluator, pipeline
+├── crewai/           # CrewAI crew and Lumina pipeline tool
+├── frontend/         # Next.js dashboard (Vercel)
+├── vercel.json       # Vercel root directory = frontend
 ├── setup.ps1         # Windows setup script
 ├── setup.sh          # macOS/Linux setup script
 ├── SETUP.md          # Detailed setup guide
@@ -86,5 +96,6 @@ lumina_prompt_engine/
 - **MONEYSAVER Mode**: Use Groq (free tier) to simulate all engines
 - **5-Criteria Evaluation**: Context, Clarity, Adherence, Robustness, Efficiency
 - **Ranked Results**: Automatically sorted by overall score
-- **Excel Export**: Download evaluation results with prompts and reasoning
+- **PDF & Excel Export**: Download evaluation results with prompts and reasoning (client-side)
 - **Modern UI**: Dark-themed dashboard with real-time progress
+- **CrewAI**: Optional agents/tools deployment; frontend can call CrewAI AMP when configured

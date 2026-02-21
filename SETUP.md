@@ -215,6 +215,10 @@ Use the Swagger UI at http://localhost:8000/docs to test API endpoints directly.
 ### MONEYSAVER Mode
 Enable MONEYSAVER mode in the UI to use Groq for all engines (free tier). Requires only `GROQ_API_KEY` in `.env`.
 
+### Deploying (Vercel + CrewAI)
+- **Frontend:** Deploy to Vercel from Git. Set Root Directory to `frontend` (or use repo `vercel.json`). In Vercel env, set `NEXT_PUBLIC_CREWAI_BASE_URL` and `NEXT_PUBLIC_CREWAI_BEARER_TOKEN` to point to your CrewAI AMP crew.
+- **Agents:** Deploy the `crewai/` project to CrewAI AMP with project root = repo root so `backend` is importable. See `crewai/README.md`.
+
 ## Next Steps
 
 1. ✅ Environment is set up

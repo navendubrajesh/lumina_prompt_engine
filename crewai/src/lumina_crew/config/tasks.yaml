@@ -1,0 +1,10 @@
+# Lumina Prompt Engine - Single task: run pipeline and return FinalResponse JSON
+
+run_pipeline_task:
+  description: >
+    Call the lumina_pipeline tool with identity="{identity}", intent="{intent}", output_format="{output_format}",
+    money_saver={money_saver}, skip_evaluation={skip_evaluation}.
+    Return the exact JSON string that the tool returns. Do not wrap it in markdown or add any text.
+  expected_output: >
+    The raw JSON string returned by the lumina_pipeline tool (FinalResponse: persona, results, summary, system_prompt, suggested_title).
+  agent: orchestrator

@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/dialog";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Copy, Info, Trophy } from "lucide-react";
-import { useState } from "react";
+import { useState, useRef, useLayoutEffect } from "react";
 import type { EvaluatedEngineOutput } from "@/lib/api-client";
 import { MetricBadge } from "./metric-badge";
 import { ScoreDetails } from "./score-details";
@@ -19,19 +19,44 @@ interface EngineCardProps {
   index?: number;
 }
 
+const TOOLTIP_GAP = 6;
+const VIEWPORT_PAD = 8;
+
 export function EngineCard({ result, isChampion = false, index = 0 }: EngineCardProps) {
   const [copied, setCopied] = useState(false);
   const [popupCopied, setPopupCopied] = useState(false);
   const [promptPopupOpen, setPromptPopupOpen] = useState(false);
+  const [promptHover, setPromptHover] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [selectedMetric, setSelectedMetric] = useState<{
     key: string;
     score: number;
     reasoning: string;
   } | null>(null);
+  const [tooltipPos, setTooltipPos] = useState<{ top: number; left: number } | null>(null);
+  const infoBtnRef = useRef<HTMLButtonElement | null>(null);
+  const tooltipRef = useRef<HTMLDivElement | null>(null);
 
   const { engine_output, evaluation, overall_score } = result;
-  const promptText = engine_output.generated_prompt;
+  const promptText = engine_output.generated_prompt ?? "";
+
+  useLayoutEffect(() => {
+    if (!promptHover || !infoBtnRef.current || !tooltipRef.current) {
+      setTooltipPos(null);
+      return;
+    }
+    const br = infoBtnRef.current.getBoundingClientRect();
+    const tr = tooltipRef.current.getBoundingClientRect();
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    let top = br.top - tr.height - TOOLTIP_GAP;
+    if (top < VIEWPORT_PAD) top = br.bottom + TOOLTIP_GAP;
+    if (top + tr.height > vh - VIEWPORT_PAD) top = vh - tr.height - VIEWPORT_PAD;
+    if (top < VIEWPORT_PAD) top = VIEWPORT_PAD;
+    let left = br.left + br.width / 2 - tr.width / 2;
+    left = Math.max(VIEWPORT_PAD, Math.min(left, vw - tr.width - VIEWPORT_PAD));
+    setTooltipPos({ top, left });
+  }, [promptHover]);
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(promptText);
@@ -84,14 +109,38 @@ export function EngineCard({ result, isChampion = false, index = 0 }: EngineCard
           </CardTitle>
         </CardHeader>
         <CardContent className="flex items-center gap-2 py-1 pt-0 pb-2">
-          <button
-            type="button"
-            onClick={() => setPromptPopupOpen(true)}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-zinc-400 hover:bg-zinc-800 hover:text-zinc-50"
-            title="View prompt"
+          <div
+            className="relative inline-flex"
+            onMouseEnter={() => setPromptHover(true)}
+            onMouseLeave={() => setPromptHover(false)}
           >
-            <Info className="h-5 w-5" />
-          </button>
+            <button
+              ref={infoBtnRef}
+              type="button"
+              onClick={() => setPromptPopupOpen(true)}
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-zinc-400 hover:bg-zinc-800 hover:text-zinc-50"
+              title="View prompt"
+            >
+              <Info className="h-5 w-5" />
+            </button>
+            {promptHover && (
+              <div
+                ref={tooltipRef}
+                role="tooltip"
+                className="z-50 max-h-[min(16rem,50vh)] w-80 overflow-hidden rounded-lg border border-zinc-600 bg-zinc-800 px-3 py-2.5 text-xs leading-relaxed text-zinc-200 shadow-lg"
+                style={
+                  tooltipPos
+                    ? { position: "fixed" as const, top: tooltipPos.top, left: tooltipPos.left }
+                    : { position: "fixed" as const, left: -9999, top: 0 }
+                }
+              >
+                <div className="max-h-[14rem] overflow-y-auto whitespace-pre-wrap break-words">
+                  {promptText || "No prompt generated"}
+                </div>
+                <p className="mt-1.5 text-[0.65rem] text-zinc-500">Click icon for full view</p>
+              </div>
+            )}
+          </div>
           <button
             type="button"
             onClick={handleCopy}
