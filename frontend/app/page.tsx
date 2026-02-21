@@ -4,6 +4,7 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import { Zap } from "lucide-react";
 import {
   generateOptimizedPrompts,
+  evaluatePrompts,
   type FinalResponse,
   type Persona,
 } from "@/lib/api-client";
@@ -54,9 +55,32 @@ export default function Home() {
     setError(null);
     setIsLoading(true);
     try {
-      const data = await generateOptimizedPrompts({ persona, money_saver: moneySaver });
+      // Phase 1: generate prompts only (display first, order = XML)
+      const data = await generateOptimizedPrompts({
+        persona,
+        money_saver: moneySaver,
+        skip_evaluation: true,
+      });
       setResponse(data);
       setProgress(100);
+      setIsLoading(false);
+
+      // Phase 2: evaluate prompts in background, then populate scores (same order as XML)
+      const evalResponse = await evaluatePrompts(
+        data.results.map((r) => r.engine_output),
+        persona,
+        moneySaver
+      );
+      const top = evalResponse.results[0];
+      const summary =
+        top != null
+          ? `Generated ${evalResponse.results.length} model-specific prompts. Top scorer: ${top.engine_output.engine_name} (overall: ${top.overall_score.toFixed(2)}).`
+          : data.summary;
+      setResponse((prev) =>
+        prev
+          ? { ...prev, results: evalResponse.results, summary }
+          : null
+      );
     } catch (err) {
       setError(err instanceof Error ? err.message : "Generation failed");
       setProgress(0);

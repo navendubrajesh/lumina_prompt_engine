@@ -46,6 +46,13 @@ class GenerateOptimizedPromptsRequest(BaseModel):
             description="If True, only Groq LLM is used (free tier). Fewer results, lower cost.",
         ),
     ]
+    skip_evaluation: Annotated[
+        bool,
+        Field(
+            default=False,
+            description="If True, return prompts only (placeholder evaluations); call /evaluate-prompts to get scores.",
+        ),
+    ]
 
     def to_persona(self) -> "Persona":
         return Persona(
@@ -256,3 +263,46 @@ class FinalResponse(BaseModel):
             description="LLM-suggested short title (≤6–8 words) for this run; user can edit in the UI.",
         ),
     ] = None,
+
+
+# ---------------------------------------------------------------------------
+# Evaluate-prompts (second phase)
+# ---------------------------------------------------------------------------
+
+PENDING_REASONING = "Evaluating..."
+
+
+def placeholder_evaluation() -> EvaluationMetrics:
+    """Placeholder evaluation when skip_evaluation=True; scores 0, reasoning 'Evaluating...'."""
+    return EvaluationMetrics(
+        contextual_alignment=0.0,
+        contextual_alignment_reasoning=PENDING_REASONING,
+        instruction_clarity=0.0,
+        instruction_clarity_reasoning=PENDING_REASONING,
+        constraint_adherence=0.0,
+        constraint_adherence_reasoning=PENDING_REASONING,
+        robustness=0.0,
+        robustness_reasoning=PENDING_REASONING,
+        efficiency=0.0,
+        efficiency_reasoning=PENDING_REASONING,
+    )
+
+
+class EvaluatePromptsRequest(BaseModel):
+    """Request body for /evaluate-prompts. Engine outputs from first phase + persona."""
+
+    persona: Persona
+    engine_outputs: Annotated[
+        list[PromptEngineOutput],
+        Field(description="Engine outputs from generate-optimized-prompts (skip_evaluation=True)", min_length=1),
+    ]
+    money_saver: Annotated[bool, Field(default=False)] = False
+
+
+class EvaluatePromptsResponse(BaseModel):
+    """Response from /evaluate-prompts. Same order as engine_outputs."""
+
+    results: Annotated[
+        list[EvaluatedEngineOutput],
+        Field(description="Engine outputs with evaluations filled in; order matches request"),
+    ]

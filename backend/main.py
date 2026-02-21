@@ -30,9 +30,12 @@ from backend.app.engines.providers import ENGINES_MONEYSAVER
 from backend.app.title_suggestion import suggest_run_title
 from backend.app.models import (
     EvaluatedEngineOutput,
+    EvaluatePromptsRequest,
+    EvaluatePromptsResponse,
     FinalResponse,
     GenerateOptimizedPromptsRequest,
     Persona,
+    placeholder_evaluation,
 )
 
 logging.basicConfig(level=logging.INFO)
@@ -99,18 +102,19 @@ async def generate_optimized_prompts(body: GenerateOptimizedPromptsRequest) -> F
 
     @contextmanager
     def _money_saver_env():
+        """MONEYSAVER: all engines + judge use Groq only (GROQ_API_KEY)."""
         if not money_saver:
             yield
             return
         saved = {}
-        for env_key, simulate_key in [
-            ("OPENAI_API_KEY", "GROQ_OPENAI_SIMULATE"),
-            ("GOOGLE_API_KEY", "GROQ_GEMINI_SIMULATE"),
-        ]:
+        # Use GROQ_API_KEY for any code that reads OPENAI/GOOGLE keys (e.g. legacy)
+        groq_key = os.environ.get("GROQ_API_KEY")
+        for env_key in ["OPENAI_API_KEY", "GOOGLE_API_KEY", "USE_GROQ_FOR_JUDGE"]:
             saved[env_key] = os.environ.get(env_key)
-            val = os.environ.get(simulate_key)
-            if val:
-                os.environ[env_key] = val
+        if groq_key:
+            os.environ["OPENAI_API_KEY"] = groq_key
+            os.environ["GOOGLE_API_KEY"] = groq_key
+        os.environ["USE_GROQ_FOR_JUDGE"] = "1"
         try:
             yield
         finally:
@@ -133,23 +137,32 @@ async def generate_optimized_prompts(body: GenerateOptimizedPromptsRequest) -> F
                     detail="No engine outputs returned. Check API keys and provider availability.",
                 )
 
-            # Evaluate all outputs in parallel (judge may use OPENAI_API_KEY -> GROQ_OPENAI_SIMULATE)
-            eval_tasks = [
-                evaluate_prompt(output, persona) for output in engine_outputs
-            ]
-            evaluations = await asyncio.gather(*eval_tasks)
-
-            results = [
-                EvaluatedEngineOutput(engine_output=out, evaluation=ev)
-                for out, ev in zip(engine_outputs, evaluations)
-            ]
-            results.sort(key=lambda r: r.overall_score, reverse=True)
-
-            summary_text = (
-                f"Generated {len(results)} model-specific prompts. "
-                f"Top scorer: {results[0].engine_output.engine_name} "
-                f"(overall: {results[0].overall_score:.2f})."
-            )
+            if body.skip_evaluation:
+                # Return prompts first; order matches XML (no sort)
+                results = [
+                    EvaluatedEngineOutput(engine_output=out, evaluation=placeholder_evaluation())
+                    for out in engine_outputs
+                ]
+                summary_text = (
+                    f"Generated {len(results)} model-specific prompts. "
+                    "Evaluating prompts…"
+                )
+            else:
+                # Evaluate all outputs in parallel (in MONEYSAVER, judge uses Groq via USE_GROQ_FOR_JUDGE)
+                eval_tasks = [
+                    evaluate_prompt(output, persona) for output in engine_outputs
+                ]
+                evaluations = await asyncio.gather(*eval_tasks)
+                results = [
+                    EvaluatedEngineOutput(engine_output=out, evaluation=ev)
+                    for out, ev in zip(engine_outputs, evaluations)
+                ]
+                # Keep XML order (no sort by score)
+                summary_text = (
+                    f"Generated {len(results)} model-specific prompts. "
+                    f"Top scorer: {results[0].engine_output.engine_name} "
+                    f"(overall: {results[0].overall_score:.2f})."
+                )
             top_prompt = results[0].engine_output.generated_prompt if results else None
             suggested_title = await suggest_run_title(persona, summary_text, top_prompt)
 
@@ -168,6 +181,49 @@ async def generate_optimized_prompts(body: GenerateOptimizedPromptsRequest) -> F
             status_code=500,
             detail=f"Internal error during prompt generation: {str(e)}",
         ) from e
+
+
+@app.post(
+    "/evaluate-prompts",
+    response_model=EvaluatePromptsResponse,
+    summary="Evaluate prompts (second phase)",
+    description="Accepts engine_outputs + persona from first-phase response; returns evaluations in same order (XML order).",
+)
+async def evaluate_prompts_endpoint(body: EvaluatePromptsRequest) -> EvaluatePromptsResponse:
+    """Run judge on already-generated prompts; order of results matches request (XML order)."""
+    persona = body.persona
+    money_saver = body.money_saver
+
+    @contextmanager
+    def _money_saver_env():
+        if not money_saver:
+            yield
+            return
+        saved = {}
+        groq_key = os.environ.get("GROQ_API_KEY")
+        for env_key in ["OPENAI_API_KEY", "GOOGLE_API_KEY", "USE_GROQ_FOR_JUDGE"]:
+            saved[env_key] = os.environ.get(env_key)
+        if groq_key:
+            os.environ["OPENAI_API_KEY"] = groq_key
+            os.environ["GOOGLE_API_KEY"] = groq_key
+        os.environ["USE_GROQ_FOR_JUDGE"] = "1"
+        try:
+            yield
+        finally:
+            for k, v in saved.items():
+                if v is not None:
+                    os.environ[k] = v
+                elif k in os.environ:
+                    os.environ.pop(k)
+
+    with _money_saver_env():
+        eval_tasks = [evaluate_prompt(out, persona) for out in body.engine_outputs]
+        evaluations = await asyncio.gather(*eval_tasks)
+    results = [
+        EvaluatedEngineOutput(engine_output=out, evaluation=ev)
+        for out, ev in zip(body.engine_outputs, evaluations)
+    ]
+    return EvaluatePromptsResponse(results=results)
 
 
 @app.get("/health", tags=["Health"])

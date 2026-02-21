@@ -59,6 +59,11 @@ export interface ApiError {
 export interface GenerateOptimizedPromptsOptions {
   persona: Persona;
   money_saver?: boolean;
+  skip_evaluation?: boolean;
+}
+
+export interface EvaluatePromptsResponse {
+  results: EvaluatedEngineOutput[];
 }
 
 export async function generateOptimizedPrompts(
@@ -66,8 +71,12 @@ export async function generateOptimizedPrompts(
 ): Promise<FinalResponse> {
   const body =
     "persona" in options && options.persona
-      ? { ...options.persona, money_saver: options.money_saver ?? false }
-      : { ...(options as Persona), money_saver: false };
+      ? {
+          ...options.persona,
+          money_saver: (options as GenerateOptimizedPromptsOptions).money_saver ?? false,
+          skip_evaluation: (options as GenerateOptimizedPromptsOptions).skip_evaluation ?? false,
+        }
+      : { ...(options as Persona), money_saver: false, skip_evaluation: false };
 
   try {
     const response = await fetch(`${API_BASE}/generate-optimized-prompts`, {
@@ -95,4 +104,27 @@ export async function generateOptimizedPrompts(
     }
     throw err;
   }
+}
+
+export async function evaluatePrompts(
+  engine_outputs: PromptEngineOutput[],
+  persona: Persona,
+  money_saver: boolean
+): Promise<EvaluatePromptsResponse> {
+  const response = await fetch(`${API_BASE}/evaluate-prompts`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+    body: JSON.stringify({ persona, engine_outputs, money_saver }),
+  });
+
+  if (!response.ok) {
+    const errorBody: ApiError | string = await response.json().catch(() => "Unknown error");
+    const message = typeof errorBody === "object" ? errorBody.detail : String(errorBody);
+    throw new Error(message || `HTTP ${response.status}`);
+  }
+
+  return response.json() as Promise<EvaluatePromptsResponse>;
 }

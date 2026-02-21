@@ -1,8 +1,8 @@
 """
 Multi-engine orchestrator. Runs all registered engines in parallel.
 
-All engine definitions live in providers.py. To add a new LLM, add a
-_make_engine(...) entry and append the instance to ENGINES there.
+Engine definitions are loaded from config/engines.xml (or ENGINES_CONFIG_PATH).
+See providers.py for the loader and fallback.
 """
 
 import asyncio

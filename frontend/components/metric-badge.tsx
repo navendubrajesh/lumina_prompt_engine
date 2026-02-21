@@ -101,7 +101,7 @@ export function MetricBadge({ evaluation, onScoreClick, compact = false }: Metri
         const isClickable = Boolean(onScoreClick);
         const isHovered = hoveredKey === key;
         const fullText = reasoning.trim() || `${label} score: ${(score * 100).toFixed(0)}%`;
-        const tooltipText = fullText.length > 50 ? `${fullText.slice(0, 50)}...` : fullText;
+        const tooltipText = fullText;
 
         return (
           <div
@@ -140,7 +140,7 @@ export function MetricBadge({ evaluation, onScoreClick, compact = false }: Metri
                     : { position: "fixed" as const, left: -9999, top: 0 }
                 }
               >
-                <p className="leading-relaxed">{tooltipText}</p>
+                <p className="leading-relaxed line-clamp-4">{tooltipText}</p>
                 <div className="absolute left-1/2 top-full -translate-x-1/2 border-4 border-transparent border-t-zinc-800" aria-hidden />
               </div>
             )}
