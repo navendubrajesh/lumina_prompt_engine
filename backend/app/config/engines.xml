@@ -9,7 +9,7 @@
     <engine model_id="openai/gpt-4o" display_name="OpenAI GPT-4o" />
     <engine model_id="anthropic/claude-3-5-sonnet-20241022" display_name="Anthropic Claude 3.5 Sonnet" />
     <engine model_id="google/gemini-1.5-pro" display_name="Google Gemini 1.5 Pro" />
-    <engine model_id="deepseek/deepseek-chat" display_name="DeepSeek Chat" />
+    <engine model_id="mistral/mistral-small-latest" display_name="Mistral AI" />
     <engine model_id="meta-llama/llama-3.1-70b-instruct" display_name="Meta Llama 3.1 70B" />
     <engine model_id="groq/llama-3.3-70b-versatile" display_name="Groq Llama 3.3 70B" />
   </engines>
@@ -18,7 +18,7 @@
     <engine display_name="OpenAI GPT-4o" api_key_env="GROQ_API_KEY" />
     <engine display_name="Anthropic Claude 3.5 Sonnet" api_key_env="GROQ_API_KEY" />
     <engine display_name="Google Gemini 1.5 Pro" api_key_env="GROQ_API_KEY" />
-    <engine display_name="DeepSeek Chat" api_key_env="GROQ_API_KEY" />
+    <engine display_name="Mistral AI" api_key_env="GROQ_API_KEY" />
     <engine display_name="Meta Llama 3.1 70B" api_key_env="GROQ_API_KEY" />
     <engine display_name="Groq Llama 3.3 70B" api_key_env="GROQ_API_KEY" />
   </engines_moneysaver>

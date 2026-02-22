@@ -11,7 +11,7 @@
 - **Backend:** When `money_saver=True`:
   - All 6 engines use **Groq only** (`groq/llama-3.3-70b-versatile`) via `ENGINES_MONEYSAVER` (same display names; `api_key_env=GROQ_API_KEY`).
   - Judge (evaluator) uses Groq via `USE_GROQ_FOR_JUDGE=1` and `GROQ_API_KEY`.
-  - Only `GROQ_API_KEY` is required; no OpenAI/Anthropic/Google/DeepSeek keys needed.
+  - Only `GROQ_API_KEY` is required; no OpenAI/Anthropic/Google/Mistral keys needed.
 - **Preservation:** Agents/tools on CrewAI must receive `money_saver`, select engine set (real vs moneysaver), and set `USE_GROQ_FOR_JUDGE` when evaluating so judge uses Groq. Same display names and same 6 “cards” in the UI.
 
 ### 1.2 Token-Related Behaviour

@@ -83,7 +83,7 @@ export function EngineCard({ result, isChampion = false, index = 0 }: EngineCard
     if (name.includes("GPT") || name.includes("OpenAI")) return "🤖";
     if (name.includes("Claude")) return "🌙";
     if (name.includes("Gemini")) return "⚡";
-    if (name.includes("DeepSeek")) return "🔮";
+    if (name.includes("Mistral")) return "⛵";
     if (name.includes("Groq")) return "🚀";
     if (name.includes("Llama")) return "🦙";
     return "🤖";
