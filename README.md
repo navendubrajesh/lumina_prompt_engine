@@ -2,6 +2,8 @@
 
 Multi-model prompt orchestration and evaluation dashboard. Generates model-specific prompts from a Persona and ranks them across 6 LLM engines using DeepEval.
 
+**Documentation:** [https://navendubrajesh.github.io/lumina_prompt_engine/](https://navendubrajesh.github.io/lumina_prompt_engine/) · [Product landing](https://navendubrajesh.github.io/lumina_prompt_engine.enterprise/)
+
 ## Quick Start
 
 ### Prerequisites

@@ -1,0 +1,41 @@
+site_name: Lumina Prompt Engine
+site_description: Multi-model prompt orchestration and evaluation dashboard
+site_url: https://navendubrajesh.github.io/lumina_prompt_engine/
+repo_url: https://github.com/navendubrajesh/lumina_prompt_engine
+repo_name: navendubrajesh/lumina_prompt_engine
+
+theme:
+  name: material
+  palette:
+    - scheme: default
+      primary: teal
+      accent: teal
+  features:
+    - navigation.tabs
+    - content.code.copy
+
+nav:
+  - Home: index.md
+  - Quickstart: quickstart.md
+  - Concepts: concepts.md
+  - Architecture: architecture.md
+  - Engines: engines.md
+  - Evaluation: evaluation.md
+  - API Reference: api.md
+  - Frontend: frontend.md
+  - CrewAI: crewai.md
+  - Deployment: deployment.md
+  - Contributing: contributing.md
+
+markdown_extensions:
+  - admonition
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - toc:
+      permalink: true
+
+plugins:
+  - search
+
+docs_dir: docs
